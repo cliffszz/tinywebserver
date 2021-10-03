@@ -12,8 +12,11 @@
 #include "threadpool.h"
 #include "httpConn.h"
 
-#define MAX_FD 65536   // 最大的文件描述符个数
-#define MAX_EVENT_NUMBER 10000  // 监听的最大的事件数量
+// 最大的文件描述符个数
+#define MAX_FD 65536   
+
+// 监听的最大的事件数量
+#define MAX_EVENT_NUMBER 10000  
 
 // 添加文件描述符
 extern void addfd(int epollfd, int fd, bool one_shot);
@@ -29,7 +32,7 @@ void addsig(int sig, void(handler)(int)) {
 }
 
 int main(int argc, char* argv[]) { 
-    if( argc <= 1 ) {
+    if(argc <= 1) {
         printf( "usage: %s port_number\n", basename(argv[0]));
         return 1;
     }
@@ -84,7 +87,7 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < number; i++) {
             int sockfd = events[i].data.fd;
             
-            if( sockfd == listenfd ) {
+            if(sockfd == listenfd) {
                 struct sockaddr_in client_address;
                 socklen_t client_addrlength = sizeof(client_address);
                 int connfd = accept(listenfd, (struct sockaddr*)&client_address, &client_addrlength);
