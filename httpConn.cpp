@@ -12,7 +12,7 @@ const char* error_500_title = "Internal Error";
 const char* error_500_form = "There was an unusual problem serving the requested file.\n";
 
 // 网站的根目录
-const char* doc_root = "/home/webserver/resources";
+const char* docRoot = "/home/tinywebsever/resources";
 
 // 设置文件描述符为非阻塞
 int setnonblocking(int fd) {
@@ -208,9 +208,6 @@ HTTPConn::HTTP_CODE HTTPConn::parseRequestLine(char* text) {
         return BAD_REQUEST;
     }
 
-    /**
-     * http://192.168.110.129:10000/index.html
-    */
     if (strncasecmp(url, "http://", 7) == 0 ) {   
         url += 7;
         // 在参数 str 所指向的字符串中搜索第一次出现字符 c（一个无符号字符）的位置。
@@ -256,7 +253,7 @@ HTTPConn::HTTP_CODE HTTPConn::parseHeaders(char* text) {
         text += strspn( text, " \t" );
         hostName = text;
     } else {
-        printf( "oop! unknow header %s\n", text );
+        printf("oop! unknow header %s\n", text);
     }
     return NO_REQUEST;
 }
@@ -334,7 +331,7 @@ bool HTTPConn::write()
     
     if ( bytes_to_send == 0 ) {
         // 将要发送的字节为0，这一次响应结束。
-        modfd(epollFd, socketFd, EPOLLIN ); 
+        modfd(epollFd, socketFd, EPOLLIN); 
         init();
         return true;
     }
@@ -451,18 +448,18 @@ bool HTTPConn::processWrite(HTTP_CODE ret) {
         case FILE_REQUEST:
             addStatusLine(200, ok_200_title);
             addHeaders(fileStat.st_size);
-            iv[ 0 ].iov_base = writeBuffer;
-            iv[ 0 ].iov_len = writeIndex;
-            iv[ 1 ].iov_base = fileAddress;
-            iv[ 1 ].iov_len = fileStat.st_size;
+            iv[0].iov_base = writeBuffer;
+            iv[0].iov_len = writeIndex;
+            iv[1].iov_base = fileAddress;
+            iv[1].iov_len = fileStat.st_size;
             ivCount = 2;
             return true;
         default:
             return false;
     }
 
-    iv[ 0 ].iov_base = writeBuffer;
-    iv[ 0 ].iov_len = writeIndex;
+    iv[0].iov_base = writeBuffer;
+    iv[0].iov_len = writeIndex;
     ivCount = 1;
     return true;
 }
@@ -477,9 +474,41 @@ void HTTPConn::process() {
     }
     
     // 生成响应
-    bool write_ret = processWrite( read_ret );
+    bool write_ret = processWrite(read_ret);
     if (!write_ret) {
         closeConn();
     }
     modfd(epollFd, socketFd, EPOLLOUT);
+}
+
+// 当得到一个完整、正确的HTTP请求时，就分析目标文件的属性，
+// 如果目标文件存在、对所有用户可读，且不是目录，则使用mmap将其映射到内存地址fileAddress处，并告诉调用者获取文件成功
+HTTPConn::HTTP_CODE HTTPConn::doRequest()
+{
+    strcpy(realFile, docRoot);
+    int len = strlen(docRoot);
+    strncpy(realFile + len, url, FILENAME_LEN - len - 1);
+
+    // 获取m_real_file文件的相关的状态信息，-1失败，0成功
+    if (stat(realFile, &fileStat) < 0) {
+        return NO_RESOURCE;
+    }
+
+    // 判断访问权限
+    if (!(fileStat.st_mode & S_IROTH)) {
+        return FORBIDDEN_REQUEST;
+    }
+
+    // 判断是否是目录
+    if (S_ISDIR(fileStat.st_mode)) {
+        return BAD_REQUEST;
+    }
+
+    // 以只读方式打开文件
+    int fd = open(realFile, O_RDONLY);
+    // 创建内存映射
+
+    fileAddress = (char*)mmap(0, fileStat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+    return FILE_REQUEST;
 }

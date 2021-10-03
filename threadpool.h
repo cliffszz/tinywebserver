@@ -38,7 +38,7 @@ private:
     int maxReqNums;
 
     // 请求队列
-    std::list<T> reqQueue;
+    std::list<T*> reqQueue;
 
     // 请求队列的互斥锁
     Locker queueLocker;
@@ -86,15 +86,15 @@ ThreadPool<T>::ThreadPool(int _threadNums, int _maxReqNUms) :
 }
 
 // 析构函数，回收内存空间，停止线程
-template< typename T >
+template<typename T>
 ThreadPool<T>::~ThreadPool() {
     delete [] threads;
     stopThread = true;
 }
 
 // 向工作队列中添加请求
-template< typename T >
-bool ThreadPool<T>::appendRequest(T *req) {
+template<typename T>
+bool ThreadPool<T>::appendRequest(T* req) {
     // 对队列加锁
     queueLocker.lock();
 
